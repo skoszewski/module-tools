@@ -57,10 +57,6 @@ if ( !$FredDir || !-e $FredDir ) {
 # remove possible slash at the end
 $InstallDir =~ s{ / \z }{}xms;
 
-# get system type
-my $SystemType = `uname -s`;
-chomp $SystemType;
-
 # get OTRS major version number
 my $OTRSReleaseString = `cat $InstallDir/RELEASE`;
 my $OTRSMajorVersion  = '';
@@ -84,11 +80,10 @@ my %Config = (
     # password for your mysql user
     'DatabasePassword' => '',
 
-    'PermissionsOTRSUser'   => '_www',    # OTRS user
-    'PermissionsOTRSGroup'  => '_www',    # OTRS group
-    'PermissionsWebUser'    => '_www',    # otrs-web user
-    'PermissionsWebGroup'   => '_www',    # otrs-web group
-    'PermissionsAdminGroup' => ( $SystemType eq 'Darwin' ? 'wheel' : 'root' ),  #
+    'PermissionsOTRSUser'  => '_www',    # OTRS user
+    'PermissionsOTRSGroup' => '_www',    # OTRS group
+    'PermissionsWebUser'   => '_www',    # otrs-web user
+    'PermissionsWebGroup'  => '_www',    # otrs-web group
 
     # the apache config of the system you're going to install will be copied to this location
     'ApacheCFGDir' => '/etc/apache2/other/',
@@ -100,9 +95,9 @@ my %Config = (
 # define some maintenance commands
 if ( $OTRSMajorVersion >= 5 ) {
     $Config{RebuildConfigCommand}
-        = "sudo -u $Config{PermissionsOTRSUser} $InstallDir/bin/otrs.Console.pl Maint::Config::Rebuild";
+        = "su -c '$InstallDir/bin/otrs.Console.pl Maint::Config::Rebuild' -s /bin/bash " . $Config{PermissionsOTRSUser};
     $Config{DeleteCacheCommand}
-        = "sudo -u $Config{PermissionsOTRSUser} $InstallDir/bin/otrs.Console.pl Maint::Cache::Delete";
+        = "su -c '$InstallDir/bin/otrs.Console.pl Maint::Cache::Delete' -s /bin/bash " . $Config{PermissionsOTRSUser};
 }
 else {
     $Config{RebuildConfigCommand} = "sudo perl $InstallDir/bin/otrs.RebuildConfig.pl";
@@ -276,8 +271,8 @@ print STDERR "############################################\n";
 # link DatabaseInstall and CodeInstall
 print STDERR "--- Linking DatabaseInstall and CodeInstall...\n";
 print STDERR "############################################\n";
-system("ln -s $Config{ModuleToolsRoot}DatabaseInstall.pl $InstallDir/bin/");
-system("ln -s $Config{ModuleToolsRoot}CodeInstall.pl $InstallDir/bin/");
+system("ln -s -t $InstallDir/bin $Config{ModuleToolsRoot}DatabaseInstall.pl");
+system("ln -s -t $InstallDir/bin $Config{ModuleToolsRoot}CodeInstall.pl");
 print STDERR "############################################\n";
 
 # setting permissions
@@ -285,7 +280,7 @@ print STDERR "--- Setting permissions...\n";
 print STDERR "############################################\n";
 if ( $OTRSMajorVersion >= 5 ) {
     system(
-        "sudo perl $InstallDir/bin/otrs.SetPermissions.pl --otrs-user=$Config{PermissionsOTRSUser} --web-group=$Config{PermissionsWebGroup} --admin-group=$Config{PermissionsAdminGroup} $InstallDir"
+        "sudo perl $InstallDir/bin/otrs.SetPermissions.pl --otrs-user=$Config{PermissionsOTRSUser} --web-group=$Config{PermissionsWebGroup} $InstallDir"
     );
 }
 else {
@@ -320,7 +315,7 @@ print STDERR "--- Setting permissions again (just to be sure)...\n";
 print STDERR "############################################\n";
 if ( $OTRSMajorVersion >= 5 ) {
     system(
-        "sudo perl $InstallDir/bin/otrs.SetPermissions.pl --otrs-user=$Config{PermissionsOTRSUser} --web-group=$Config{PermissionsWebGroup} --admin-group=$Config{PermissionsAdminGroup} $InstallDir"
+        "sudo perl $InstallDir/bin/otrs.SetPermissions.pl --otrs-user=$Config{PermissionsOTRSUser} --web-group=$Config{PermissionsWebGroup} $InstallDir"
     );
 }
 else {
@@ -339,7 +334,7 @@ sub Usage {
 $Message
 
 USAGE:
-    $0 -p /ws/otrs -f /devel/Fred
+    $0 -p /ws/otrs32-devel -f /devel/Fred_3_1
 HELPSTR
     return;
 }
